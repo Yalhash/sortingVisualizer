@@ -1,0 +1,6 @@
+/assets/*
+*.mp4
+*.h264
+sorting_visualizer/Logs.txt
+Debug
+*.vcxproj
