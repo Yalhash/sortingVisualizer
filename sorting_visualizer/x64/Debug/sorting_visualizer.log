@@ -1,0 +1,4 @@
+﻿  Source.cpp
+c:\users\youse\desktop\programminglearn\summerprojects\sorting_visualizer\sorting_visualizer\source.cpp(322): warning C4244: '+=': conversion from 'int64_t' to 'int', possible loss of data
+c:\users\youse\desktop\programminglearn\summerprojects\sorting_visualizer\sorting_visualizer\source.cpp(484): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
+  sorting_visualizer.vcxproj -> C:\Users\youse\Desktop\programmingLearn\summerProjects\sorting_visualizer\sorting_visualizer\..\bin\sorting_visualizer.exe
