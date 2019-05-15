@@ -1,18 +1,17 @@
 #include <stdint.h>
 #include <stdexcept>
-
+#include <string>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 /*TODO:
-*make more sorts
-*make a single pixel pixelArray->rgb_image update and replace the full image updates in swap and other thing
+*make more sorts:
+*Heap sort, radix sort, quick sort
 */
 #include "VideoCapture.h"
 #define VIDEO_TMP_FILE "tmp.h264"
 #define FINAL_FILE_NAME "sortingSample.mp4"
-
 
 
 void VideoCapture::Init(int width, int height, int fpsrate, int bitrate) {
@@ -339,16 +338,7 @@ void VideoCapture::Remux() {
 
 
 
-
-
-
-
-
-
-
-
-
-
+//pixel struct for storing pixel data as well as position in picture
 struct Pixel {
 	unsigned char r;
 	unsigned char g;
@@ -363,14 +353,15 @@ void updateSingleRGB(Pixel*, uint8_t*, int);
 void printPixels(Pixel*, int);
 void printRGB(unsigned char*, int);
 void swap(Pixel*, uint8_t*, int, int, int, VideoCapture*);
+void swapNoFrame(Pixel*, uint8_t*, int, int, int);
 void delay(uint8_t*, int, VideoCapture*);
 void shufflePixels(Pixel*, uint8_t*, int, VideoCapture*);
-
+void shuffleNoVid(Pixel* pixelArr, uint8_t* rgb, int size);
 //sorts:
-
-void quickSort(Pixel*, uint8_t*, int, VideoCapture*);
+int partition(Pixel*, uint8_t*, int, VideoCapture*, int, int);
+void quickSort(Pixel*, uint8_t*, int, VideoCapture*, int low = 0, int high = -1);
 void merge(Pixel*, uint8_t*, int, int, int, int, VideoCapture*);
-void mergeSort(Pixel*, uint8_t*, int, VideoCapture*, int, int);
+void mergeSort(Pixel*, uint8_t*, int, VideoCapture*, int left = 0, int right = -1);
 void bubbleSort(Pixel*, uint8_t*, int, VideoCapture*);
 
 
@@ -378,20 +369,18 @@ void bubbleSort(Pixel*, uint8_t*, int, VideoCapture*);
 unsigned int FRAMECOUNT = 0;
 
 int main() {
-	//filename constants:
 	const char *EXT = "mpeg1video";
-	const char *FILENAME = "visualized_sort.mpg";
-	const char *IMAGEFILE = "..\\assets\\feelsGood_tiny.png";
-
-
-	//loading in picture
+	char FILENAME[] = "visualized_sort.mpg";
+	const char *IMAGEFILE = "../assets/testIMG2.PNG";
 	int width, height, bpp;
+	
 	//creates a long list of size width*height, wherein each part of the rgb is made up of 2 bytes (or 2 chars)
 	//ex: red => ff 00 00 (255, 0, 0)
 	uint8_t* rgb_image = stbi_load(IMAGEFILE, &width, &height, &bpp, 3);
-	//if NULL (or empty) throw error.
+	
 	if (!rgb_image) {
-		throw std::runtime_error("[-] Cannot read image!");
+		std::cout << "[-] Couldn't read the file, exiting" << std::endl;
+		return 0;
 	}
 	int size = width * height;
 	int fps, bitrate;
@@ -400,28 +389,50 @@ int main() {
 	Pixel* pixelArray = getOrderedPixelFromRBG(rgb_image, size);
 	VideoCapture *capture = Init(width, height, fps, bitrate);
 	
+	
 	//-----------------------------------------sort area -----------------------------------------------------
-	delay(rgb_image, fps * 2, capture); //2 second delay at start
-	shufflePixels(pixelArray, rgb_image, size, capture); 
-	delay(rgb_image, fps * 1, capture); //1 second delay before sorting
-	mergeSort(pixelArray, rgb_image, size, capture, 0, -1);
-	delay(rgb_image, fps * 1, capture); //2 second delay
-	//shufflePixels(pixelArray, rgb_image, size, capture);
-	//delay(rgb_image, fps * 1, capture); //1 second delay
-	//bubbleSort(pixelArray, rgb_image, size, capture);
-	//delay(rgb_image, fps * 1, capture); //1 more second delay
+	/*
+	*place whatever sort function or combination of sorts, delays, and shuffles inside of this area in order
+	*to create a video with each element.
+	*Elements to place:
+	*delay(rgb_image, fps * <number of seconds>, capture); <- delay for some amount of frames
+	*shufflePixels(pixelArray, rgb_image, size, capture); <- shuffle with video
+	*shuffleNoVid(pixelArray, rgb_image, size); <- shuffle without any shuffle frames (instant)
+	*Sorts:
+	*bubbleSort(pixelArray, rgb_image, size, capture);
+	*mergeSort(pixelArray, rgb_image, size, capture);
+	*quickSort(pixelArray, rgb_image, size, capture);
+	*/
+	
+	shufflePixels(pixelArray, rgb_image, size, capture);
+	delay(rgb_image, fps * 1, capture); 
+	quickSort(pixelArray, rgb_image, size, capture);
+	delay(rgb_image, fps * 1, capture);
+	shufflePixels(pixelArray, rgb_image, size, capture);
+	delay(rgb_image, fps * 1, capture);
+	mergeSort(pixelArray, rgb_image, size, capture);
+	delay(rgb_image, fps * 1, capture);
+
+	
+	
 	//-----------------------------------------end of sort area -----------------------------------------------------
 
+	delay(rgb_image, fps * 1, capture); //2 second delay
+
+	//freeing up the memory
 	capture->Finish();
 	stbi_image_free(rgb_image);
 	delete[] pixelArray;
 	pixelArray = NULL;
-	system("PAUSE");
 	return 0;
 }
 
-/*---------------------------------------------------HELPER FUNCTIONS-------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------------------------------------------------------------------------*/
+/*----------------------------------------------------------FUNCTIONS-------------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------------------------------------------------------------------------------*/
 
+
+/*----------------------------------------------------------UPDATE FUNCTIONS-------------------------------------------------------*/
 Pixel* getOrderedPixelFromRBG(uint8_t* rgb ,int size) {
 	Pixel* newArray;
 	newArray = new Pixel[size];
@@ -448,6 +459,11 @@ uint8_t* getRGBFromOrderedPixel(Pixel* pixelArr, int size){
 	return newArray;
 }
 
+
+/*----------------------------------------------------------UPDATE FUNCTIONS-------------------------------------------------------*/
+
+//this function is not really used, as it is more efficient to 
+//just update the pixels as needed, instead of the entire photo
 void updateRGB(Pixel* pixelArr, uint8_t* RGB, int size) {
 	for (int i = 0; i < size; i++) {
 		RGB[i * 3] = pixelArr[i].r;
@@ -456,6 +472,19 @@ void updateRGB(Pixel* pixelArr, uint8_t* RGB, int size) {
 	}
 	
 }
+
+//changes a single pixel inside the pixel array to be the same as a new pixel
+void updatePixel(Pixel* pixelArr, uint8_t* rgb, Pixel newPix, int index, int size, VideoCapture* capture) {
+	pixelArr[index].r = newPix.r;
+	pixelArr[index].g = newPix.g;
+	pixelArr[index].b = newPix.b;
+	pixelArr[index].position = newPix.position;
+
+	printf("update from external array: %d\n", FRAMECOUNT++);
+	updateSingleRGB(pixelArr, rgb, index);
+	capture->AddFrame(rgb);
+}
+
 void updateSingleRGB(Pixel* pixelArr, uint8_t* RGB, int index) {
 	RGB[index * 3] = pixelArr[index].r;
 	RGB[index * 3 + 1] = pixelArr[index].g;
@@ -475,11 +504,9 @@ void printRGB(unsigned char* rgbArr, int size) {
 	}
 }
 
-
-
-
 /*--------------------------------------------------------------------shuffle, swap, and delays-----------------------------------------------------------------*/
 
+//used to randomize the pixels in a visual way, each swap is captured and added to the video
 void shufflePixels(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
 	srand(time(0));
 	int randIndex;
@@ -489,18 +516,27 @@ void shufflePixels(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* captur
 	}
 
 }
+//used to start a sort shuffled, or instantly shuffle (in terms of the video
+void shuffleNoVid(Pixel* pixelArr, uint8_t* rgb, int size) {
+	srand(time(0));
+	int randIndex;
+	for (int i = 0; i < size; i++) {
+		randIndex = rand() % size;
+		swapNoFrame(pixelArr, rgb, i, randIndex, size);
+	}
 
-void updatePixel(Pixel* pixelArr, uint8_t* rgb, Pixel element, int index, int size, VideoCapture* capture) {
-	pixelArr[index].r = element.r;
-	pixelArr[index].g = element.g;
-	pixelArr[index].b = element.b;
-	pixelArr[index].position = element.position;
-
-	printf("update from external array: %d\n", FRAMECOUNT++);
-	updateSingleRGB(pixelArr, rgb, index);
-	capture->AddFrame(rgb);
 }
 
+//used for swapping pixels without creating a frame
+void swapNoFrame(Pixel* pixelArr, uint8_t* rgb, int index1, int index2, int size) {
+	Pixel tempPixel = pixelArr[index1];
+	pixelArr[index1] = pixelArr[index2];
+	pixelArr[index2] = tempPixel;
+	//capture the image at this moment
+	printf("swap (no frame created)\n");
+	updateSingleRGB(pixelArr, rgb, index1);
+	updateSingleRGB(pixelArr, rgb, index2);
+}
 
 void swap(Pixel* pixelArr, uint8_t* rgb, int index1, int index2, int size, VideoCapture* capture) {
 	Pixel tempPixel = pixelArr[index1];
@@ -528,7 +564,7 @@ void delay(uint8_t* rgb, int frames, VideoCapture* capture) {
 /*----------------------------------------------------------------------SORTS--------------------------------------------------------------------------*/
 	
 
-//bubble Sort
+//bubble sort
 void bubbleSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
 	bool noSwap;
 	for (int i = 0; i < size; i++) {
@@ -546,8 +582,23 @@ void bubbleSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
 }
 
 
-//merge Sort
+//merge sort
+void mergeSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int left, int right) {
 
+	if (right == -1) {	//for first entry
+		right = size - 1; 
+	}
+	
+	if (left < right) {
+		//find midpoint
+		int mid = left + (right - left) / 2;
+		//sort the left and right
+		mergeSort(pixelArr, rgb, size, capture, left, mid);
+		mergeSort(pixelArr, rgb, size, capture, mid + 1, right);
+		//merge the halves
+		merge(pixelArr, rgb, size, left, mid, right, capture);
+	}
+}
 
 void merge(Pixel* pixelArr, uint8_t* rgb, int size,  int left, int mid, int right, VideoCapture* capture) {
 	int i, j, k;
@@ -598,26 +649,35 @@ void merge(Pixel* pixelArr, uint8_t* rgb, int size,  int left, int mid, int righ
 	R = NULL;
 }
 
-void mergeSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int left=0, int right = -1) {
-	//for first entry
-	if (right == -1) {
-		right = size - 1; 
+
+
+//quick sort 
+void quickSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high) {
+	
+	if (high == -1) { //for first entry
+		high = size - 1;
 	}
-	
-	
-	if (left < right) {
-		//find midpoint
-		int mid = left + (right - left) / 2;
-		//sort the left and right
-		mergeSort(pixelArr, rgb, size, capture, left, mid);
-		mergeSort(pixelArr, rgb, size, capture, mid + 1, right);
-		//merge the halves
-		merge(pixelArr, rgb, size, left, mid, right, capture);
+
+	if (low < high) {
+		int partitionInd = partition(pixelArr, rgb, size, capture, low, high);
+		quickSort(pixelArr, rgb, size, capture, low, partitionInd-1); //left of part
+		quickSort(pixelArr, rgb, size, capture, partitionInd + 1, high); //right of part
 	}
 }
 
+//takes partition as last element 
 
-//quick Sort
-void quickSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
-	return;
+int partition(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high) { 
+	Pixel pivot = pixelArr[high];
+	int leftInd = low - 1;
+
+	for (int i = low; i <= high - 1; i++) {
+		if (pixelArr[i].position <= pivot.position) {
+			leftInd++;
+			swap(pixelArr, rgb, leftInd, i, size, capture);
+		}
+	}
+	//take the partition from the end of the list, and centre it
+	swap(pixelArr, rgb, leftInd+1, high, size, capture);
+	return (leftInd + 1);
 }
