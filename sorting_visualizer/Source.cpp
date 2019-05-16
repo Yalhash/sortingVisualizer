@@ -358,6 +358,7 @@ void delay(uint8_t*, int, VideoCapture*);
 void shufflePixels(Pixel*, uint8_t*, int, VideoCapture*);
 void shuffleNoVid(Pixel* pixelArr, uint8_t* rgb, int size);
 //sorts:
+void heapSort(Pixel*, uint8_t*, int, VideoCapture*);
 int partition(Pixel*, uint8_t*, int, VideoCapture*, int, int);
 void quickSort(Pixel*, uint8_t*, int, VideoCapture*, int low = 0, int high = -1);
 void merge(Pixel*, uint8_t*, int, int, int, int, VideoCapture*);
@@ -402,15 +403,12 @@ int main() {
 	*bubbleSort(pixelArray, rgb_image, size, capture);
 	*mergeSort(pixelArray, rgb_image, size, capture);
 	*quickSort(pixelArray, rgb_image, size, capture);
+	*heapSort(pixelArray, rgb_image, size, capture);
 	*/
 	
 	shufflePixels(pixelArray, rgb_image, size, capture);
 	delay(rgb_image, fps * 1, capture); 
-	quickSort(pixelArray, rgb_image, size, capture);
-	delay(rgb_image, fps * 1, capture);
-	shufflePixels(pixelArray, rgb_image, size, capture);
-	delay(rgb_image, fps * 1, capture);
-	mergeSort(pixelArray, rgb_image, size, capture);
+	heapSort(pixelArray, rgb_image, size, capture);
 	delay(rgb_image, fps * 1, capture);
 
 	
@@ -680,4 +678,63 @@ int partition(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, in
 	//take the partition from the end of the list, and centre it
 	swap(pixelArr, rgb, leftInd+1, high, size, capture);
 	return (leftInd + 1);
+}
+
+
+
+
+
+//heap sort
+int getLeftChild(int index) { return index * 2 + 1; }
+int getRightChild(int index) { return index * 2 + 2; }
+
+
+bool hasLeftChild(int index, int size) {
+	return getLeftChild(index) < size;
+}
+bool hasRightChild(int index, int size) {
+	return getRightChild(index) < size;
+}
+//Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture
+void siftDown(Pixel* pixelArr, uint8_t* rgb, int size, int currentRoot, VideoCapture* capture) {
+	int largestIndex = currentRoot;
+
+	if (hasLeftChild(currentRoot, size)) {
+		//check if left is larger than root
+		if (pixelArr[getLeftChild(currentRoot)].position > pixelArr[currentRoot].position) {
+			largestIndex = getLeftChild(currentRoot);
+		}
+		//no need to check for right child if no left
+		if (hasRightChild(currentRoot, size) && pixelArr[getRightChild(currentRoot)].position > pixelArr[largestIndex].position) {
+			largestIndex = getRightChild(currentRoot);
+		}
+	}
+
+
+	if (currentRoot != largestIndex) {
+		swap(pixelArr, rgb, currentRoot, largestIndex, size, capture);
+		siftDown(pixelArr, rgb, size, largestIndex, capture);//repeat until no swaps are needed
+	}
+}
+
+void heapify(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
+	//start at 2nd last row and move up
+	for (int i = size / 2 - 1; i >= 0; i--) {
+		siftDown(pixelArr,rgb, size, i, capture);
+	}
+}
+
+//quickSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high)
+
+void heapSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
+
+	heapify(pixelArr, rgb, size, capture);
+	for (int i = size - 1; i >= 0; i--)
+	{
+		// move root to end
+		swap(pixelArr, rgb, 0, i, size, capture);
+		
+		// call recreate the heap
+		siftDown(pixelArr, rgb, i, 0, capture);
+	}
 }
