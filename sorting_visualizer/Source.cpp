@@ -356,23 +356,26 @@ void swap(Pixel*, uint8_t*, int, int, int, VideoCapture*);
 void swapNoFrame(Pixel*, uint8_t*, int, int, int);
 void delay(uint8_t*, int, VideoCapture*);
 void shufflePixels(Pixel*, uint8_t*, int, VideoCapture*);
-void shuffleNoVid(Pixel* pixelArr, uint8_t* rgb, int size);
-//sorts:
-void heapSort(Pixel*, uint8_t*, int, VideoCapture*);
+void shuffleNoVid(Pixel*, uint8_t*, int);
+void reverseInPlace(Pixel*, uint8_t*, int, VideoCapture*);
 int partition(Pixel*, uint8_t*, int, VideoCapture*, int, int);
-void quickSort(Pixel*, uint8_t*, int, VideoCapture*, int low = 0, int high = -1);
 void merge(Pixel*, uint8_t*, int, int, int, int, VideoCapture*);
+//sorts:
+
+void quickSort(Pixel*, uint8_t*, int, VideoCapture*, int low = 0, int high = -1);
 void mergeSort(Pixel*, uint8_t*, int, VideoCapture*, int left = 0, int right = -1);
 void bubbleSort(Pixel*, uint8_t*, int, VideoCapture*);
-
-
+void heapSort(Pixel*, uint8_t*, int, VideoCapture*);
+void heapSortMin(Pixel*, uint8_t*, int, VideoCapture*);
+void countingSort(Pixel*, uint8_t*, int, VideoCapture*);
+void radixSortBaseTen(Pixel*, uint8_t*, int, VideoCapture*);
 
 unsigned int FRAMECOUNT = 0;
 
 int main() {
 	const char *EXT = "mpeg1video";
 	char FILENAME[] = "visualized_sort.mpg";
-	const char *IMAGEFILE = "../assets/testIMG2.PNG";
+	const char *IMAGEFILE = "../assets/testIMGBig.PNG";
 	int width, height, bpp;
 	
 	//creates a long list of size width*height, wherein each part of the rgb is made up of 2 bytes (or 2 chars)
@@ -380,7 +383,7 @@ int main() {
 	uint8_t* rgb_image = stbi_load(IMAGEFILE, &width, &height, &bpp, 3);
 	
 	if (!rgb_image) {
-		std::cout << "[-] Couldn't read the file, exiting" << std::endl;
+		std::cout << "Couldn't read the file, exiting" << std::endl;
 		return 0;
 	}
 	int size = width * height;
@@ -404,15 +407,15 @@ int main() {
 	*mergeSort(pixelArray, rgb_image, size, capture);
 	*quickSort(pixelArray, rgb_image, size, capture);
 	*heapSort(pixelArray, rgb_image, size, capture);
+	*heapSortMin(pixelArray, rgb_image, size, capture);
+	*countingSort(pixelArray, rgb_image, size, capture);
+	*radixSortBaseTen(pixelArray, rgb_image, size, capture);
 	*/
-	
+	delay(rgb_image, fps * 1, capture);
 	shufflePixels(pixelArray, rgb_image, size, capture);
-	delay(rgb_image, fps * 1, capture); 
-	heapSort(pixelArray, rgb_image, size, capture);
+	radixSortBaseTen(pixelArray, rgb_image, size, capture);
 	delay(rgb_image, fps * 1, capture);
 
-	
-	
 	//-----------------------------------------end of sort area -----------------------------------------------------
 
 	delay(rgb_image, fps * 1, capture); //2 second delay
@@ -488,6 +491,16 @@ void updateSingleRGB(Pixel* pixelArr, uint8_t* RGB, int index) {
 	RGB[index * 3 + 1] = pixelArr[index].g;
 	RGB[index * 3 + 2] = pixelArr[index].b;
 }
+
+void copyPixelArray(Pixel* pixelArr, Pixel* newArr, int size) {
+	for (int i = 0; i < size; i++) {
+		newArr[i].r = pixelArr[i].r;
+		newArr[i].g = pixelArr[i].g;
+		newArr[i].b = pixelArr[i].b;
+		newArr[i].position = pixelArr[i].position;
+	}
+}
+
 /*---------------------------------------------------------------DEBUG PRINTS-------------------------------------------------------*/
 
 void printPixels(Pixel* pixelArr, int size){
@@ -581,24 +594,8 @@ void bubbleSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
 
 
 //merge sort
-void mergeSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int left, int right) {
 
-	if (right == -1) {	//for first entry
-		right = size - 1; 
-	}
-	
-	if (left < right) {
-		//find midpoint
-		int mid = left + (right - left) / 2;
-		//sort the left and right
-		mergeSort(pixelArr, rgb, size, capture, left, mid);
-		mergeSort(pixelArr, rgb, size, capture, mid + 1, right);
-		//merge the halves
-		merge(pixelArr, rgb, size, left, mid, right, capture);
-	}
-}
-
-void merge(Pixel* pixelArr, uint8_t* rgb, int size,  int left, int mid, int right, VideoCapture* capture) {
+void merge(Pixel* pixelArr, uint8_t* rgb, int size, int left, int mid, int right, VideoCapture* capture) {
 	int i, j, k;
 	int leftSize = mid - left + 1;
 	int rightSize = right - mid;
@@ -611,7 +608,7 @@ void merge(Pixel* pixelArr, uint8_t* rgb, int size,  int left, int mid, int righ
 		L[i] = pixelArr[left + i];
 	for (j = 0; j < rightSize; j++)
 		R[j] = pixelArr[mid + 1 + j];
-	
+
 	i = 0;
 	j = 0;
 	k = left;
@@ -647,9 +644,43 @@ void merge(Pixel* pixelArr, uint8_t* rgb, int size,  int left, int mid, int righ
 	R = NULL;
 }
 
+void mergeSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int left, int right) {
+
+	if (right == -1) {	//for first entry
+		right = size - 1; 
+	}
+	
+	if (left < right) {
+		//find midpoint
+		int mid = left + (right - left) / 2;
+		//sort the left and right
+		mergeSort(pixelArr, rgb, size, capture, left, mid);
+		mergeSort(pixelArr, rgb, size, capture, mid + 1, right);
+		//merge the halves
+		merge(pixelArr, rgb, size, left, mid, right, capture);
+	}
+}
+
 
 
 //quick sort 
+
+//takes last element as partition
+int partition(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high) {
+	Pixel pivot = pixelArr[high];
+	int leftInd = low - 1;
+
+	for (int i = low; i <= high - 1; i++) {
+		if (pixelArr[i].position <= pivot.position) {
+			leftInd++;
+			swap(pixelArr, rgb, leftInd, i, size, capture);
+		}
+	}
+	//take the partition from the end of the list, and centre it
+	swap(pixelArr, rgb, leftInd + 1, high, size, capture);
+	return (leftInd + 1);
+}
+
 void quickSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high) {
 	
 	if (high == -1) { //for first entry
@@ -663,39 +694,19 @@ void quickSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, i
 	}
 }
 
-//takes partition as last element 
-
-int partition(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high) { 
-	Pixel pivot = pixelArr[high];
-	int leftInd = low - 1;
-
-	for (int i = low; i <= high - 1; i++) {
-		if (pixelArr[i].position <= pivot.position) {
-			leftInd++;
-			swap(pixelArr, rgb, leftInd, i, size, capture);
-		}
-	}
-	//take the partition from the end of the list, and centre it
-	swap(pixelArr, rgb, leftInd+1, high, size, capture);
-	return (leftInd + 1);
-}
-
-
-
-
-
 //heap sort
+
 int getLeftChild(int index) { return index * 2 + 1; }
 int getRightChild(int index) { return index * 2 + 2; }
-
-
 bool hasLeftChild(int index, int size) {
 	return getLeftChild(index) < size;
 }
 bool hasRightChild(int index, int size) {
 	return getRightChild(index) < size;
 }
-//Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture
+
+
+
 void siftDown(Pixel* pixelArr, uint8_t* rgb, int size, int currentRoot, VideoCapture* capture) {
 	int largestIndex = currentRoot;
 
@@ -724,8 +735,6 @@ void heapify(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
 	}
 }
 
-//quickSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, int low, int high)
-
 void heapSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
 
 	heapify(pixelArr, rgb, size, capture);
@@ -738,3 +747,173 @@ void heapSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
 		siftDown(pixelArr, rgb, i, 0, capture);
 	}
 }
+
+
+
+
+//minimum heap sort
+
+void reverseInPlace(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
+	for (int i = 0; i < size/2; i++) {
+		swap(pixelArr, rgb, i, size - i-1, size, capture);
+	}
+}
+
+
+void siftDownMin(Pixel* pixelArr, uint8_t* rgb, int size, int currentRoot, VideoCapture* capture) {
+	int smallestIndex = currentRoot;
+
+	if (hasLeftChild(currentRoot, size)) {
+		//check if left is smaller than root
+		if (pixelArr[getLeftChild(currentRoot)].position < pixelArr[currentRoot].position) {
+			smallestIndex = getLeftChild(currentRoot);
+		}
+		//no need to check for right child if no left
+		if (hasRightChild(currentRoot, size) && pixelArr[getRightChild(currentRoot)].position < pixelArr[smallestIndex].position) {
+			smallestIndex = getRightChild(currentRoot);
+		}
+	}
+
+	if (currentRoot != smallestIndex) {
+		swap(pixelArr, rgb, currentRoot, smallestIndex, size, capture);
+		siftDownMin(pixelArr, rgb, size, smallestIndex, capture);//repeat until no swaps are needed
+	}
+}
+
+
+
+
+void heapifyMin(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
+	//start at 2nd last row and move up
+	for (int i = size / 2 - 1; i >= 0; i--) {
+		siftDownMin(pixelArr, rgb, size, i, capture);
+	}
+
+}
+
+
+void heapSortMin(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
+	heapifyMin(pixelArr, rgb, size, capture);
+	for (int i = size - 1; i >= 0; i--)
+	{
+		// move root to end
+		swap(pixelArr, rgb, 0, i, size, capture);
+
+		// call recreate the heap
+		siftDownMin(pixelArr, rgb, i, 0, capture);
+	}
+	reverseInPlace(pixelArr, rgb, size, capture);
+}
+
+
+
+//counting sort
+
+
+void countingSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
+	int* countArr;
+	countArr = new int[size];
+	Pixel* newArr;
+	newArr = new Pixel[size];
+	copyPixelArray(pixelArr, newArr, size);
+
+
+	//create the count array
+	for (int i = 0; i < size; i++) {
+		countArr[i] = 0;
+	}
+	for (int i = 0; i < size; i++) {
+		countArr[pixelArr[i].position] += 1;
+	}
+
+	//modify the count array to the cumulative version
+	for (int i = 1; i < size; i++) {
+		countArr[i] += countArr[i - 1];
+	}
+
+
+	//go through the last Array backwards and create sorted array
+	for (int i = size - 1; i >= 0; i--) {// = countArr[newArr[i].position] - 1
+		countArr[newArr[i].position]--;
+		updatePixel(pixelArr, rgb, newArr[i], countArr[newArr[i].position], size, capture);
+	}
+
+	//DELETE THE TEMPORARY ARRAYS!!!
+	delete[] newArr;
+	delete[] countArr;
+	countArr = NULL;
+	newArr = NULL;
+}
+
+
+
+//radix base 10
+
+int powTen(int n) {
+	int power = 1;
+	for (int i = 0; i < n; i++) {
+		power *= 10;
+	}
+	return power;
+}
+
+int getDigit(int num, int digitIndex) {
+	int finalNum = num;
+	finalNum = finalNum / powTen(digitIndex);
+	return finalNum % 10;
+}
+
+int getNumDigits(int num) {
+	int i = 0;
+	while (num >= powTen(i)) {
+		i++;
+	}
+	if (i == 0) {
+		return 1;
+	}
+	return i;
+}
+
+void countingSortRadix(Pixel* pixelArr, uint8_t* rgb, int size, int range, int digit, VideoCapture* capture) {
+	int* countArr;
+	Pixel* newArr;
+	newArr = new Pixel[size];
+	copyPixelArray(pixelArr, newArr, size);
+	countArr = new int[range];
+
+	//create the count array
+	for (int i = 0; i < range; i++) {
+		countArr[i] = 0;
+	}
+	for (int i = 0; i < size; i++) {
+		countArr[getDigit(pixelArr[i].position, digit)] += 1;
+	}
+
+	//modify the count array to the cumulative version
+	for (int i = 1; i < range; i++) {
+		countArr[i] += countArr[i - 1];
+	}
+
+	//go through the last Array backwards and create sorted array
+	for (int i = size - 1; i >= 0; i--) {
+		countArr[getDigit(newArr[i].position, digit)]--;
+		updatePixel(pixelArr, rgb, newArr[i], countArr[getDigit(newArr[i].position, digit)], size, capture);
+	}
+
+	//DELETE THE TEMPORARY ARRAYS!!!
+	delete[] newArr;
+	delete[] countArr;
+	countArr = NULL;
+	newArr = NULL;
+}
+
+//(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture)
+void radixSortBaseTen(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
+	int range = getNumDigits(size);
+	for (int i = 0; i < range; i++) {
+		countingSortRadix(pixelArr, rgb, size, 10, i, capture);
+	}
+}
+
+
+
