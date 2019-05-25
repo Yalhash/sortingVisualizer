@@ -1,14 +1,12 @@
 #include <stdint.h>
 #include <stdexcept>
 #include <string>
+#include <iostream>
+#include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-/*TODO:
-*make more sorts:
-*Heap sort, radix sort, quick sort
-*/
 #include "VideoCapture.h"
 #define VIDEO_TMP_FILE "tmp.h264"
 #define FINAL_FILE_NAME "sortingSample.mp4"
@@ -370,61 +368,175 @@ void heapSortMin(Pixel*, uint8_t*, int, VideoCapture*);
 void countingSort(Pixel*, uint8_t*, int, VideoCapture*);
 void radixSortBaseTen(Pixel*, uint8_t*, int, VideoCapture*);
 
-unsigned int FRAMECOUNT = 0;
 
+//global variables
+unsigned int FRAMECOUNT = 0;
+unsigned int SKIP = 10;
+char LOADSIGN = '\\';
 int main() {
 	const char *EXT = "mpeg1video";
 	char FILENAME[] = "visualized_sort.mpg";
-	const char *IMAGEFILE = "../assets/testIMGBig.PNG";
 	int width, height, bpp;
+	const char *IMAGEFILE; //"../assets/testIMGBig.PNG"
+	uint8_t* rgb_image = NULL;
+	std::vector <std::string> actionList;
+	std::string inputStr;
+	std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+	std::cout << "------------------------------ Image Sorting Visualizer -----------------------------" << std::endl;
+	std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+	std::cout << "if you need help, type \"help\" for usage, or \"exit\" to exit" << std::endl;
 	
-	//creates a long list of size width*height, wherein each part of the rgb is made up of 2 bytes (or 2 chars)
-	//ex: red => ff 00 00 (255, 0, 0)
-	uint8_t* rgb_image = stbi_load(IMAGEFILE, &width, &height, &bpp, 3);
+
+
 	
-	if (!rgb_image) {
-		std::cout << "Couldn't read the file, exiting" << std::endl;
-		return 0;
+	//main loop?
+	while (true) {
+		std::cout << ">> ";
+		std::getline(std::cin, inputStr);
+		if (inputStr == "help") {
+			std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+			std::cout << "Overview:\n    Choose an image file with file command, and use the add command to add sorts,\n    delays, or scrambles in any order" << std::endl;
+			std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+			std::cout << "Commands:\n    file <filename>, Usage: choose the file to make a visualization out of." << std::endl;
+			std::cout << "    add <action>, Usage: add an action to the visualization." << std::endl;
+			std::cout << "    clear, Usage: clears the list of actions added prior." << std::endl;
+			std::cout << "    status, Usage: view the list of actions added prior." << std::endl;
+			std::cout << "    create, Usage: creates the visualization, as long as there is at least one action,\n                   and a valid file. (Exits upon completion)" << std::endl;
+			std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+			std::cout << "Actions:\n    Sorts: bubble, quick, merge, heapMax, heapMin, counting, radix" << std::endl;
+			std::cout << "    Other: delay (1 second), shuffle, shuffleNoVid, reverse" << std::endl;
+		}
+		else if (inputStr.find("file") != std::string::npos) {
+			//read the filename, and try to open it
+			std::string imageFileInput;
+			
+			if(inputStr.size() > 4){
+				imageFileInput = inputStr.substr(5);
+			}
+			else {
+				std::cout << ">> provide a file: ";
+				std::getline(std::cin, imageFileInput);
+			}
+			IMAGEFILE = imageFileInput.c_str();
+			try {
+				rgb_image = stbi_load(IMAGEFILE, &width, &height, &bpp, 3);
+			}
+			catch (const std::exception& e) {
+				std::cout << ">> Couldn't read file." << std::endl;
+			}
+
+			if (!rgb_image) {
+				std::cout << ">> Couldn't find file." << std::endl;
+			}
+			else {
+				std::cout << ">> " << imageFileInput << " successfully loaded." << std::endl;
+			}
+
+
+		}
+		else if (inputStr.find("add") != std::string::npos) {
+			//add stuff to the actionList
+			std::string actionInput;
+			if (inputStr.size() > 3) {
+				actionInput = inputStr.substr(4);
+			}
+			else {
+				std::cout << ">> provide an action: ";
+				std::getline(std::cin, actionInput);
+			}
+
+			if (actionInput == "bubble" || actionInput == "quick" || actionInput == "merge" || actionInput == "heapMax" || actionInput == "heapMin" || actionInput == "counting" || actionInput == "radix" || actionInput == "shuffle" || actionInput == "shuffleNoVid" || actionInput == "reverse"|| actionInput == "delay") {
+				actionList.push_back(actionInput);
+				std::cout << ">> " << actionInput << " successfully added." << std::endl;
+			}
+			else {
+				std::cout << ">> Invalid action!" << std::endl;
+			}
+			
+
+			
+		}
+		else if (inputStr == "status") {
+			std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+			if (actionList.size() == 0) {
+				std::cout << "Currently no actions." << std::endl;
+			}
+			else {
+				std::cout << "Actions: " << std::endl;
+				for (int i = 0; i < actionList.size(); i++) {
+					std::cout << "    " << i + 1 << ". " << actionList[i] << std::endl;
+				}
+			}
+			std::cout << "-------------------------------------------------------------------------------------" << std::endl;
+		}
+		else if (inputStr == "clear") {
+			actionList.clear();
+			std::cout << ">> Actions cleared." << std::endl;
+		}
+		else if (inputStr == "create") {
+			if (actionList.size() < 1) {
+				std::cout << ">> Need at least 1 action." << std::endl;
+			}
+			else if(!rgb_image){
+				std::cout << ">> Need a valid file." << std::endl;
+			}
+			else {
+				int size = width * height;
+				int fps, bitrate;
+				fps = 960; //480 by default
+				bitrate = 24000;
+				Pixel* pixelArray = getOrderedPixelFromRBG(rgb_image, size);
+				VideoCapture *capture = Init(width, height, fps, bitrate);
+
+				for (int i = 0; i < actionList.size(); i++) {
+					if (actionList[i] == "bubble") {
+						bubbleSort(pixelArray, rgb_image, size, capture);
+					}
+					else if(actionList[i] == "quick") {
+						quickSort(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "merge") {
+						mergeSort(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "heapMax") {
+						heapSort(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "heapMin") {
+						heapSortMin(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "counting") {
+						countingSort(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "radix") {
+						radixSortBaseTen(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "shuffle") {
+						shufflePixels(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "shuffleNoVid") {
+						shuffleNoVid(pixelArray, rgb_image, size);
+					}
+					else if (actionList[i] == "reverse") {
+						reverseInPlace(pixelArray, rgb_image, size, capture);
+					}
+					else if (actionList[i] == "delay") {
+						delay(rgb_image, fps, capture);
+					}
+				}
+				capture->Finish();
+				stbi_image_free(rgb_image);
+				delete[] pixelArray;
+				pixelArray = NULL;
+				return 0;
+			}
+		}
+		else if (inputStr == "exit") {
+			return 0;
+		}
+		else {
+			std::cout << ">> Invalid command!" << std::endl;
+		}		
 	}
-	int size = width * height;
-	int fps, bitrate;
-	fps = 960; //480 by default
-	bitrate = 24000;
-	Pixel* pixelArray = getOrderedPixelFromRBG(rgb_image, size);
-	VideoCapture *capture = Init(width, height, fps, bitrate);
-	
-	
-	//-----------------------------------------sort area -----------------------------------------------------
-	/*
-	*place whatever sort function or combination of sorts, delays, and shuffles inside of this area in order
-	*to create a video with each element.
-	*Elements to place:
-	*delay(rgb_image, fps * <number of seconds>, capture); <- delay for some amount of frames
-	*shufflePixels(pixelArray, rgb_image, size, capture); <- shuffle with video
-	*shuffleNoVid(pixelArray, rgb_image, size); <- shuffle without any shuffle frames (instant)
-	*Sorts:
-	*bubbleSort(pixelArray, rgb_image, size, capture);
-	*mergeSort(pixelArray, rgb_image, size, capture);
-	*quickSort(pixelArray, rgb_image, size, capture);
-	*heapSort(pixelArray, rgb_image, size, capture);
-	*heapSortMin(pixelArray, rgb_image, size, capture);
-	*countingSort(pixelArray, rgb_image, size, capture);
-	*radixSortBaseTen(pixelArray, rgb_image, size, capture);
-	*/
-	delay(rgb_image, fps * 1, capture);
-	shufflePixels(pixelArray, rgb_image, size, capture);
-	radixSortBaseTen(pixelArray, rgb_image, size, capture);
-	delay(rgb_image, fps * 1, capture);
-
-	//-----------------------------------------end of sort area -----------------------------------------------------
-
-	delay(rgb_image, fps * 1, capture); //2 second delay
-
-	//freeing up the memory
-	capture->Finish();
-	stbi_image_free(rgb_image);
-	delete[] pixelArray;
-	pixelArray = NULL;
 	return 0;
 }
 
@@ -462,7 +574,19 @@ uint8_t* getRGBFromOrderedPixel(Pixel* pixelArr, int size){
 
 
 /*----------------------------------------------------------UPDATE FUNCTIONS-------------------------------------------------------*/
-
+inline void updateVisual() {
+	switch (FRAMECOUNT % 1000) {
+	case 0: LOADSIGN = '\\';
+		break;
+	case 250: LOADSIGN = '|';
+		break;
+	case 500: LOADSIGN = '/';
+		break;
+	case 750: LOADSIGN = '-';
+		break;
+	}
+	std::cout << "\r" << LOADSIGN << "Generating Video, Frame: " << FRAMECOUNT++ << LOADSIGN << "\r";
+}
 //this function is not really used, as it is more efficient to 
 //just update the pixels as needed, instead of the entire photo
 void updateRGB(Pixel* pixelArr, uint8_t* RGB, int size) {
@@ -481,9 +605,14 @@ void updatePixel(Pixel* pixelArr, uint8_t* rgb, Pixel newPix, int index, int siz
 	pixelArr[index].b = newPix.b;
 	pixelArr[index].position = newPix.position;
 
-	printf("update from external array: %d\n", FRAMECOUNT++);
+	updateVisual();
+
+
 	updateSingleRGB(pixelArr, rgb, index);
-	capture->AddFrame(rgb);
+	if (FRAMECOUNT%SKIP == 0) {
+		capture->AddFrame(rgb);
+	}
+	
 }
 
 void updateSingleRGB(Pixel* pixelArr, uint8_t* RGB, int index) {
@@ -515,6 +644,7 @@ void printRGB(unsigned char* rgbArr, int size) {
 	}
 }
 
+
 /*--------------------------------------------------------------------shuffle, swap, and delays-----------------------------------------------------------------*/
 
 //used to randomize the pixels in a visual way, each swap is captured and added to the video
@@ -522,7 +652,10 @@ void shufflePixels(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* captur
 	srand(time(0));
 	int randIndex;
 	for (int i = 0; i < size; i++) {
-		randIndex = rand() % size;
+		//when using larger images, the rand function will not
+		//produce values up to the size, so a larger number is needed
+		randIndex = (rand()*rand()) % size;
+		std::cout << "shuffle ";
 		swap(pixelArr, rgb,  i, randIndex, size, capture);
 	}
 
@@ -544,7 +677,8 @@ void swapNoFrame(Pixel* pixelArr, uint8_t* rgb, int index1, int index2, int size
 	pixelArr[index1] = pixelArr[index2];
 	pixelArr[index2] = tempPixel;
 	//capture the image at this moment
-	printf("swap (no frame created)\n");
+	updateVisual();
+
 	updateSingleRGB(pixelArr, rgb, index1);
 	updateSingleRGB(pixelArr, rgb, index2);
 }
@@ -554,10 +688,13 @@ void swap(Pixel* pixelArr, uint8_t* rgb, int index1, int index2, int size, Video
 	pixelArr[index1] = pixelArr[index2];
 	pixelArr[index2] = tempPixel;
 	//capture the image at this moment
-	printf("swap:  %d\n", FRAMECOUNT++);
+	updateVisual();
 	updateSingleRGB(pixelArr, rgb, index1);
 	updateSingleRGB(pixelArr, rgb, index2);
-	capture->AddFrame(rgb);
+	if (FRAMECOUNT%SKIP == 0) {
+		capture->AddFrame(rgb);
+	}
+
 }
 
 
@@ -565,8 +702,9 @@ void swap(Pixel* pixelArr, uint8_t* rgb, int index1, int index2, int size, Video
 void delay(uint8_t* rgb, int frames, VideoCapture* capture) {
 
 	for (int i = 0; i < frames; i++) {
+		updateVisual();
 		capture->AddFrame(rgb);
-		printf("delay: %d\n", FRAMECOUNT++);
+		
 	}
 }
 
@@ -582,6 +720,7 @@ void bubbleSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture){
 		noSwap = true;
 		for (int j = 0; j < size-1; j++) {
 			if (pixelArr[j].position > pixelArr[j + 1].position) {
+				std::cout << "bubble ";
 				swap(pixelArr, rgb, j, j + 1, size, capture);
 				noSwap = false;
 			}
@@ -616,10 +755,12 @@ void merge(Pixel* pixelArr, uint8_t* rgb, int size, int left, int mid, int right
 
 	while (i < leftSize && j < rightSize) {
 		if (L[i].position <= R[j].position) {
+			std::cout << "merge ";
 			updatePixel(pixelArr, rgb, L[i], k, size, capture);
 			i++;
 		}
 		else {
+			std::cout << "merge ";
 			updatePixel(pixelArr, rgb, R[j], k, size, capture);
 			j++;
 		}
@@ -628,11 +769,13 @@ void merge(Pixel* pixelArr, uint8_t* rgb, int size, int left, int mid, int right
 
 	//copy remaining 
 	while (i < leftSize) {
+		std::cout << "merge ";
 		updatePixel(pixelArr, rgb, L[i], k, size, capture);
 		i++;
 		k++;
 	}
 	while (j < rightSize) {
+		std::cout << "merge ";
 		updatePixel(pixelArr, rgb, R[j], k, size, capture);
 		j++;
 		k++;
@@ -673,10 +816,12 @@ int partition(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture, in
 	for (int i = low; i <= high - 1; i++) {
 		if (pixelArr[i].position <= pivot.position) {
 			leftInd++;
+			std::cout << "quick ";
 			swap(pixelArr, rgb, leftInd, i, size, capture);
 		}
 	}
 	//take the partition from the end of the list, and centre it
+	std::cout << "quick ";
 	swap(pixelArr, rgb, leftInd + 1, high, size, capture);
 	return (leftInd + 1);
 }
@@ -723,6 +868,7 @@ void siftDown(Pixel* pixelArr, uint8_t* rgb, int size, int currentRoot, VideoCap
 
 
 	if (currentRoot != largestIndex) {
+		std::cout << "heap max ";
 		swap(pixelArr, rgb, currentRoot, largestIndex, size, capture);
 		siftDown(pixelArr, rgb, size, largestIndex, capture);//repeat until no swaps are needed
 	}
@@ -741,6 +887,7 @@ void heapSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
 	for (int i = size - 1; i >= 0; i--)
 	{
 		// move root to end
+		std::cout << "heap max ";
 		swap(pixelArr, rgb, 0, i, size, capture);
 		
 		// call recreate the heap
@@ -755,6 +902,7 @@ void heapSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
 
 void reverseInPlace(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture) {
 	for (int i = 0; i < size/2; i++) {
+		std::cout << "reverse ";
 		swap(pixelArr, rgb, i, size - i-1, size, capture);
 	}
 }
@@ -775,6 +923,7 @@ void siftDownMin(Pixel* pixelArr, uint8_t* rgb, int size, int currentRoot, Video
 	}
 
 	if (currentRoot != smallestIndex) {
+		std::cout << "heap min ";
 		swap(pixelArr, rgb, currentRoot, smallestIndex, size, capture);
 		siftDownMin(pixelArr, rgb, size, smallestIndex, capture);//repeat until no swaps are needed
 	}
@@ -796,6 +945,7 @@ void heapSortMin(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture)
 	heapifyMin(pixelArr, rgb, size, capture);
 	for (int i = size - 1; i >= 0; i--)
 	{
+		std::cout << "heap min ";
 		// move root to end
 		swap(pixelArr, rgb, 0, i, size, capture);
 
@@ -833,12 +983,13 @@ void countingSort(Pixel* pixelArr, uint8_t* rgb, int size, VideoCapture* capture
 
 
 	//go through the last Array backwards and create sorted array
-	for (int i = size - 1; i >= 0; i--) {// = countArr[newArr[i].position] - 1
+	for (int i = size - 1; i >= 0; i--) {
 		countArr[newArr[i].position]--;
+		std::cout << "count ";
 		updatePixel(pixelArr, rgb, newArr[i], countArr[newArr[i].position], size, capture);
 	}
 
-	//DELETE THE TEMPORARY ARRAYS!!!
+	//delete temp arrays
 	delete[] newArr;
 	delete[] countArr;
 	countArr = NULL;
@@ -897,10 +1048,12 @@ void countingSortRadix(Pixel* pixelArr, uint8_t* rgb, int size, int range, int d
 	//go through the last Array backwards and create sorted array
 	for (int i = size - 1; i >= 0; i--) {
 		countArr[getDigit(newArr[i].position, digit)]--;
+		std::cout << "radix ";
 		updatePixel(pixelArr, rgb, newArr[i], countArr[getDigit(newArr[i].position, digit)], size, capture);
 	}
 
-	//DELETE THE TEMPORARY ARRAYS!!!
+
+	//delete temp arrays
 	delete[] newArr;
 	delete[] countArr;
 	countArr = NULL;
