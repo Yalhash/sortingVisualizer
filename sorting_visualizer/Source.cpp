@@ -344,6 +344,7 @@ struct Pixel {
 	int position;
 };
 
+//misc functions
 Pixel* getOrderedPixelFromRBG(uint8_t*, int);
 uint8_t* getRGBFromOrderedPixel(Pixel*, int);
 void updateRGB(Pixel*, uint8_t*, int);
@@ -371,7 +372,7 @@ void radixSortBaseTen(Pixel*, uint8_t*, int, VideoCapture*);
 
 //global variables
 unsigned int FRAMECOUNT = 0;
-unsigned int SKIP = 10;
+unsigned int SKIP = 100;
 char LOADSIGN = '\\';
 int main() {
 	const char *EXT = "mpeg1video";
@@ -389,7 +390,7 @@ int main() {
 
 
 	
-	//main loop?
+	//main loop
 	while (true) {
 		std::cout << ">> ";
 		std::getline(std::cin, inputStr);
@@ -483,14 +484,17 @@ int main() {
 			else {
 				int size = width * height;
 				int fps, bitrate;
-				fps = 960; //480 by default
-				bitrate = 24000;
+				fps = 60; //480 by default
+				bitrate = 3000;
+				SKIP = width + height;
 				Pixel* pixelArray = getOrderedPixelFromRBG(rgb_image, size);
 				VideoCapture *capture = Init(width, height, fps, bitrate);
 
 				for (int i = 0; i < actionList.size(); i++) {
 					if (actionList[i] == "bubble") {
+						SKIP *= 5;
 						bubbleSort(pixelArray, rgb_image, size, capture);
+						SKIP = SKIP / 5;
 					}
 					else if(actionList[i] == "quick") {
 						quickSort(pixelArray, rgb_image, size, capture);
