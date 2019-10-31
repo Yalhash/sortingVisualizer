@@ -14,7 +14,7 @@ These visualizations are of given images having their pixels shuffled and then s
 This was done with the help of stb_image to import images, and ffmpeg to encode them.
 This program works best with small images, as it sorts by position, so the size of the array being sorted is the length x width.   
 
-here is an example output of the program done with radix base 10  
+here is an example output of the program done with max heap sort  
 (it was converted from mp4 to gif, so it could be shown in markdown, so there is a slight decrease in quality)  
 ![example output](md_assets/example_output.gif)  
 
