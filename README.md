@@ -19,4 +19,4 @@ here is an example output of the program done with max heap sort
 ![example output](md_assets/example_output.gif)  
 
 
-Thanks to Dmytro Dovzhenko for his help, with the VideoCapture class.
+Thanks to Dmytro Dovzhenko for his VideoCapture class.
